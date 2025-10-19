@@ -1,0 +1,44 @@
+{
+  "name": "todo-graphql",
+  "version": "1.0.0",
+  "description": "A modern GraphQL todo application with TypeScript and @defer support",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "codegen": "graphql-codegen --config codegen.ts"
+  },
+  "keywords": [
+    "graphql",
+    "todo",
+    "yoga",
+    "defer",
+    "stream",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@graphql-yoga/plugin-defer-stream": "^3.1.0",
+    "graphql": "^16.8.1",
+    "graphql-tag": "^2.12.6",
+    "graphql-yoga": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "request": "^2.88.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^5.0.0",
+    "@graphql-codegen/typescript": "^4.0.1",
+    "@graphql-codegen/typescript-resolvers": "^4.0.1",
+    "@types/node": "^20.11.16",
+    "@types/uuid": "^9.0.7",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
