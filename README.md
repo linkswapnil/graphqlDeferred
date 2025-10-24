@@ -290,8 +290,7 @@ This project is licensed under the MIT License.
 - Add rate limiting and security middleware 
 
 
-
-// Deferred spectrum data query on lab
+```// Deferred spectrum data query on lab
 query DevicesDataQuery(
   $operatorId: String!
   $networkEntity: String!
@@ -347,12 +346,11 @@ query DevicesDataQuery(
   },
   "offset": 0,
   "count": 5000
-}
+}```
 
 
 
-
-//Streamed all devices data 
+```//Streamed all devices data 
 query AllDevicesQuery(
   $operatorId: String!
   $networkEntity: String!
@@ -383,4 +381,4 @@ query AllDevicesQuery(
     "type": "RN"
   },
   "limit": 2
-}
+}```
