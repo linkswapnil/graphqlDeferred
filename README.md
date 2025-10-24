@@ -381,4 +381,47 @@ query AllDevicesQuery(
     "type": "RN"
   },
   "limit": 2
-}```
+}
+
+// Stream + defer
+
+query AllDevicesQueryAllServices(
+  $operatorId: String!
+  $networkEntity: String!
+  $ids: [ID!]
+  $deviceFilter: DeviceFilterInput
+  $limit: Int = 2
+) {
+  allDevices(
+    operatorId: $operatorId
+    networkEntity: $networkEntity
+    ids: $ids
+    deviceFilter: $deviceFilter
+    limit: $limit
+  ) @stream(initialCount: $limit) {
+    devicesData{
+      data {
+        serialNumber
+      }
+    }
+    ... @defer {
+      spectrumData
+    }
+  }
+}
+
+//input
+{
+  "operatorId": "150554",
+  "ids":[398489,402270],
+  "networkEntity":"regions",
+  "deviceFilter": {
+    "type": "RN"
+  },
+  "limit": 2
+}
+
+
+
+
+```

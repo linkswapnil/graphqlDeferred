@@ -130,9 +130,41 @@ async function* fetchAllDevices(queryParams: any) {
     });
     if (!batch.data.length) break
     totalCount = batch.totalCount;
+    // Start fetching spectrum in the background for this batch (do not await)
+    const serials = batch.data
+      .map((d: any) => d?.serialNumber)
+      .filter((s: unknown): s is string => typeof s === "string" && s.length > 0);
+    const spectrumPromise = serials.length
+      ? (async () => {
+          // Delay spectrum fetch by 2 seconds to support deferred behavior
+          await simulateExpensiveOperation(2000);
+          return getSpectrumDataQuery({
+            operatorId: queryParams.operatorId,
+            input: {
+              deviceSerialNumbers: serials,
+              eirpCarrier0: true,
+              eirpCarrier1: true,
+              eirpCarrier2: true,
+              eirpCarrier3: true,
+              palCount: true,
+              reason: true,
+              status: true,
+            },
+          });
+        })()
+      : Promise.resolve({});
+
+    // Shape the yielded value like a DeviceListResponse with an attached spectrum promise
+    const parentForBatch = {
+      data: batch.data,
+      offset: typeof batch.offset === "number" ? batch.offset : offset,
+      totalCount: batch.totalCount,
+      _spectrumPromise: spectrumPromise,
+    } as any;
+
     // Add 2s delay before yielding this batch to simulate latency/throttle streaming
-    await simulateExpensiveOperation(2000)
-    yield* batch.data
+    // await simulateExpensiveOperation(2000)
+    yield parentForBatch
     offset += queryParams.limit
   }
 }
@@ -452,18 +484,23 @@ export const resolvers = {
       return { data: list, offset: 0, totalCount: list.length };
     },
     spectrumData: async (parent: any, _args: unknown, _context: Context, info: any) => {
-      const operatorId = info?.variableValues?.operatorId;
-      const devicesArray = Array.isArray(parent?.data)
-        ? parent.data
-        : Array.isArray(parent)
-        ? parent
-        : [parent];
+      // If a background spectrum promise is attached (from fetchAllDevices), await it
+      if (parent && parent._spectrumPromise && typeof parent._spectrumPromise.then === "function") {
+        try {
+          return await parent._spectrumPromise;
+        } catch (_e) {
+          return {};
+        }
+      }
+      // Fallback: compute from the parent data shape if needed
+      const devicesArray = Array.isArray(parent?.data) ? parent.data : [];
       const serials = devicesArray
         .map((device: any) => device?.serialNumber)
         .filter((s: unknown): s is string => typeof s === "string" && s.length > 0);
       if (!serials.length) return {};
-      const spectrumData = await getSpectrumDataQuery({
-        operatorId: operatorId,
+      const operatorId = parent?._operatorId ?? info?.variableValues?.operatorId ?? "";
+      return await getSpectrumDataQuery({
+        operatorId,
         input: {
           deviceSerialNumbers: serials,
           eirpCarrier0: true,
@@ -475,7 +512,6 @@ export const resolvers = {
           status: true,
         },
       });
-      return spectrumData;
     },
   },
 
