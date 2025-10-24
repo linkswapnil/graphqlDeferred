@@ -118,6 +118,25 @@ const JSONType = new GraphQLScalarType({
   },
 });
 
+// Async generator resolver that yields batches of items
+async function* fetchAllDevices(queryParams: any) {
+  let offset = 0
+  let totalCount = 1;
+  while (totalCount > offset) {
+    const batch = await getDevicesDataQuery({
+      ...queryParams,
+      offset: offset,
+      count: queryParams.limit,
+    });
+    if (!batch.data.length) break
+    totalCount = batch.totalCount;
+    // Add 2s delay before yielding this batch to simulate latency/throttle streaming
+    await simulateExpensiveOperation(2000)
+    yield* batch.data
+    offset += queryParams.limit
+  }
+}
+
 export const resolvers = {
   Date: DateType,
   JSON: JSONType,
@@ -242,9 +261,29 @@ export const resolvers = {
       };
     },
 
-    devicesData: async (_parent: unknown, _args: unknown, _context: Context) => {
-      const { operatorId, networkEntity, ids, offset, count, deviceFilter } = _context?.params?.variables;
-      const devicesData = await getDevicesDataQuery({ operatorId: operatorId, networkEntity: networkEntity, ids: ids, offset: offset, count: count, deviceFilter });
+    devicesData: async (
+      _parent: unknown,
+      args: {
+        operatorId: string;
+        networkEntity: string;
+        ids?: number[];
+        offset?: number;
+        count?: number;
+        deviceFilter?: {
+          type?: string;
+          savedConfig?: boolean;
+          reportedConfig?: boolean;
+          reportedState?: boolean;
+          connected?: boolean;
+        };
+      },
+      _context: Context
+    ) => {
+      const { operatorId, networkEntity, ids, offset = 0, count = 20, deviceFilter } = args;
+      const params: any = { operatorId, networkEntity, offset, count };
+      if (typeof ids !== "undefined") params.ids = ids;
+      if (typeof deviceFilter !== "undefined") params.deviceFilter = deviceFilter;
+      const devicesData = await getDevicesDataQuery(params);
       return devicesData;
     },
 
@@ -380,16 +419,62 @@ export const resolvers = {
         ? await response.json()
         : await response.text();
     },
+
+    allDevices: async function* (     _parent: unknown,
+      args: {
+        networkEntity: string;
+        limit: number;
+        operatorId: string;
+        deviceFilter?: {
+          type?: string;
+          savedConfig?: boolean;
+          reportedConfig?: boolean;
+          reportedState?: boolean;
+        };
+        ids: number[];
+      }) {
+        const { networkEntity, limit, operatorId, deviceFilter, ids } = args;
+        const queryParams: any = { operatorId, networkEntity, limit };
+        if (typeof ids !== "undefined") queryParams.ids = ids;
+        if (typeof deviceFilter !== "undefined") queryParams.deviceFilter = deviceFilter;
+      yield* fetchAllDevices(queryParams)
+    }
   },
 
   DevicesData: {
     devicesData: async (parent: any, _args: unknown, _context: Context) => {
-      return parent;
+      // If parent already looks like a DeviceListResponse, return as-is
+      if (parent && Array.isArray(parent.data)) {
+        return parent;
+      }
+      // Otherwise, wrap a single streamed device into a DeviceListResponse shape
+      const list = Array.isArray(parent) ? parent : [parent];
+      return { data: list, offset: 0, totalCount: list.length };
     },
-    spectrumData: async (devicesData: any, _args: unknown, _context: Context) => {
-      // console.log(a, b, c, d);
-      const { operatorId } = _context?.params?.variables;
-      const spectrumData = await getSpectrumDataQuery({ operatorId: operatorId, input: { deviceSerialNumbers: devicesData.data.map((device: any) => device.serialNumber), eirpCarrier0: true, eirpCarrier1: true, eirpCarrier2: true, eirpCarrier3: true, palCount: true, reason: true, status: true } });
+    spectrumData: async (parent: any, _args: unknown, _context: Context, info: any) => {
+      const operatorId = info?.variableValues?.operatorId;
+      const devicesArray = Array.isArray(parent?.data)
+        ? parent.data
+        : Array.isArray(parent)
+        ? parent
+        : [parent];
+      const serials = devicesArray
+        .map((device: any) => device?.serialNumber)
+        .filter((s: unknown): s is string => typeof s === "string" && s.length > 0);
+      if (!serials.length) return {};
+      const spectrumData = await getSpectrumDataQuery({
+        operatorId: operatorId,
+        input: {
+          deviceSerialNumbers: serials,
+          eirpCarrier0: true,
+          eirpCarrier1: true,
+          eirpCarrier2: true,
+          eirpCarrier3: true,
+          palCount: true,
+          reason: true,
+          status: true,
+        },
+      });
       return spectrumData;
     },
   },

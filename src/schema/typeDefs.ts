@@ -1,4 +1,4 @@
-import { gql } from 'graphql-tag';
+import { gql } from "graphql-tag";
 
 export const typeDefs = gql`
   scalar Date
@@ -113,10 +113,7 @@ export const typeDefs = gql`
     ): DeviceListResponse
 
     # Fetch spectrum data from SDS
-    getSpectrumData(
-      operatorId: String!
-      input: SpectrumDataInput!
-    ): JSON
+    getSpectrumData(operatorId: String!, input: SpectrumDataInput!): JSON
 
     # Fetch all devices (aggregates NIS list and SDS spectrum per-device)
     getAllDevicesData(
@@ -129,7 +126,14 @@ export const typeDefs = gql`
       spectrumInput: SpectrumDataInput
     ): [AllDeviceData!]!
 
-       
+    allDevices(
+      operatorId: String!
+      networkEntity: String!
+      limit: Int!
+      deviceFilter: DeviceFilterInput
+      ids: [ID!]
+    ): [DevicesData!]!
+
     # Expensive operations perfect for @defer
     expensiveReport: ExpensiveReport!
 
@@ -155,7 +159,6 @@ export const typeDefs = gql`
     detailedAnalysis: ReportAnalysis
     recommendations: [String!]!
   }
-
 
   type ReportAnalysis {
     dataProcessingTime: Float!
@@ -184,4 +187,4 @@ export const typeDefs = gql`
     todoUpdated: Todo!
     todoDeleted: ID!
   }
-`; 
+`;

@@ -27,13 +27,19 @@ export async function getDevicesDataQuery(params: {
   url.searchParams.set("offset", String(offset));
   url.searchParams.set("count", String(count));
 
-  const filterWithDefaults = {
+  console.log("nis api call url::", url.toString());
+
+  const filterWithDefaults: any = {
     type: deviceFilter?.type ?? "BN",
     savedConfig: deviceFilter?.savedConfig ?? false,
     reportedConfig: deviceFilter?.reportedConfig ?? false,
     reportedState: deviceFilter?.reportedState ?? true,
-    connected: deviceFilter?.connected ?? true,
+    // connected: deviceFilter?.connected ?? true,
   };
+
+  if(deviceFilter?.connected !== undefined) {
+    filterWithDefaults.connected = deviceFilter.connected;
+  }
 
   const body: Record<string, unknown> = {
     ...(ids && ids.length ? { ids } : {}),

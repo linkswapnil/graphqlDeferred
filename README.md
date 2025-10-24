@@ -288,3 +288,99 @@ This project is licensed under the MIT License.
 - Add unit and integration tests
 - Add Docker support
 - Add rate limiting and security middleware 
+
+
+
+// Deferred spectrum data query on lab
+query DevicesDataQuery(
+  $operatorId: String!
+  $networkEntity: String!
+  $ids: [ID!]
+  $deviceFilter: DeviceFilterInput
+  $offset: Int = 0
+  $count: Int = 20
+  $spectrumInput: SpectrumDataInput
+) {
+  devicesData(
+    operatorId: $operatorId
+    networkEntity: $networkEntity
+    ids: $ids
+    deviceFilter: $deviceFilter
+    offset: $offset
+    count: $count
+    spectrumInput: $spectrumInput
+  ) {
+    devicesData {
+      offset
+      totalCount
+      data {
+        id
+        serialNumber
+        type
+        connected
+        softwareVersion
+        endpoints {
+          http { ip port }
+        }
+      }
+    }
+    ... @defer {
+      spectrumData
+    }
+  }
+}
+
+
+// variables
+
+{
+  "operatorId": "150554",
+  "ids":[398489,402270],
+  "networkEntity":"regions",
+  "deviceFilter": {
+    "type": "RN",
+    "connected": true
+  },
+  "spectrumInput": {
+    "deviceSerialNumbers": [],
+    "eirpCarrier0": true
+  },
+  "offset": 0,
+  "count": 5000
+}
+
+
+
+
+//Streamed all devices data 
+query AllDevicesQuery(
+  $operatorId: String!
+  $networkEntity: String!
+  $ids: [ID!]
+  $deviceFilter: DeviceFilterInput
+  $limit: Int = 2
+) {
+  allDevices(
+    operatorId: $operatorId
+    networkEntity: $networkEntity
+    ids: $ids
+    deviceFilter: $deviceFilter
+    limit: $limit
+  ) @stream(initialCount: $limit) {
+    devicesData{
+      data {
+        serialNumber
+      }
+    }
+  }
+}
+
+{
+  "operatorId": "150554",
+  "ids":[398489,402270],
+  "networkEntity":"regions",
+  "deviceFilter": {
+    "type": "RN"
+  },
+  "limit": 2
+}
