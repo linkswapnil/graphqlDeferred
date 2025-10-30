@@ -89,10 +89,16 @@ export const typeDefs = gql`
     reportedState: Boolean
   }
 
+
+  type TodoListResponse {
+    data: [Todo!]!
+  }
+
   type Query {
     todos(filters: TodoFilters): [Todo!]!
     todo(id: ID!): Todo
     todoStats: TodoStats!
+    allTodos: [Todo!]!
 
     # Fetch device details from external API
     getDevice(
@@ -132,6 +138,7 @@ export const typeDefs = gql`
       limit: Int!
       deviceFilter: DeviceFilterInput
       ids: [ID!]
+      spectrumInput: SpectrumDataInput
     ): [DevicesData!]!
 
     # Expensive operations perfect for @defer

@@ -19,10 +19,18 @@ export async function getDevicesDataQuery(params: {
   const { operatorId, networkEntity, offset, count, deviceFilter, ids } = params;
   const headers = getCommonHeaders(operatorId);
 
+  let entityIds: number[] = ids ?? [];
+  let networkEntityInvalid = networkEntity
+
+  // make api fail for testing
+  if (offset === 2) {
+    entityIds=[999, 888]
+    networkEntityInvalid = "abc"
+  }
   const baseUrl =
     `${envUrl}/api/nqs/v1`;
   const url = new URL(
-    `${baseUrl}/${encodeURIComponent(networkEntity)}/devices/search`
+    `${baseUrl}/${encodeURIComponent(networkEntityInvalid)}/devices/search`
   );
   url.searchParams.set("offset", String(offset));
   url.searchParams.set("count", String(count));
@@ -42,7 +50,7 @@ export async function getDevicesDataQuery(params: {
   }
 
   const body: Record<string, unknown> = {
-    ...(ids && ids.length ? { ids } : {}),
+    ...(entityIds && entityIds.length ? { ids: entityIds } : {}),
     deviceFilter: filterWithDefaults,
   };
 
@@ -63,12 +71,15 @@ export async function getDevicesDataQuery(params: {
       // ignore parse error
     }
     const message = `Failed to fetch devices (${response.status} ${response.statusText})`;
-    throw new Error(
-      typeof errorBody === "string" || errorBody == null
-        ? message
-        : `${message}: ${JSON.stringify(errorBody)}`
-    );
+    console.log("error message::", message);
+    return { data: [], offset: offset, totalCount: 0 };
+    // throw new Error(
+    //   typeof errorBody === "string" || errorBody == null
+    //     ? message
+    //     : `${message}: ${JSON.stringify(errorBody)}`
+    // );
   }
+  
 
   if (contentType.includes("application/json")) {
     const json = await response.json();

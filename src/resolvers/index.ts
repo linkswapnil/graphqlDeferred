@@ -121,23 +121,28 @@ const JSONType = new GraphQLScalarType({
 // Async generator resolver that yields batches of items
 async function* fetchAllDevices(queryParams: any) {
   let offset = 0
-  let totalCount = 1;
-  while (totalCount > offset) {
+  let totalCount = 0;
+  while (totalCount >= offset) {
+    await simulateExpensiveOperation(500);
     const batch = await getDevicesDataQuery({
       ...queryParams,
       offset: offset,
       count: queryParams.limit,
     });
-    if (!batch.data.length) break
-    totalCount = batch.totalCount;
+    // if (!batch.data.length) break
+    totalCount = batch.totalCount || totalCount;
+    let spectrumPromise: Promise<any[]> = Promise.resolve([])
+    if(queryParams.spectrumInput) {
     // Start fetching spectrum in the background for this batch (do not await)
     const serials = batch.data
       .map((d: any) => d?.serialNumber)
       .filter((s: unknown): s is string => typeof s === "string" && s.length > 0);
-    const spectrumPromise = serials.length
+     spectrumPromise = serials.length
       ? (async () => {
           // Delay spectrum fetch by 2 seconds to support deferred behavior
+          console.log("fetching spectrum data for serials::", serials);
           await simulateExpensiveOperation(2000);
+          
           return getSpectrumDataQuery({
             operatorId: queryParams.operatorId,
             input: {
@@ -153,6 +158,7 @@ async function* fetchAllDevices(queryParams: any) {
           });
         })()
       : Promise.resolve({});
+    }
 
     // Shape the yielded value like a DeviceListResponse with an attached spectrum promise
     const parentForBatch = {
@@ -202,7 +208,7 @@ export const resolvers = {
       await simulateExpensiveOperation(2000);
 
       // Find todos with similar keywords
-      const allTodos = todoStore.getTodos();
+      const allTodos = await todoStore.getTodos();
       const keywords = parent.title.toLowerCase().split(" ");
       const related = allTodos
         .filter(
@@ -267,12 +273,45 @@ export const resolvers = {
   },
 
   Query: {
-    todos: (
+    todos: async function* (
       _parent: unknown,
-      args: { filters?: TodoFilters },
+      _args: { filters?: TodoFilters },
       _context: Context
-    ) => {
-      return todoStore.getTodos(args.filters);
+    ) {
+      const allTodos = [
+        { id: '1', title: 'Hello world', completed: false, createdAt: new Date(), updatedAt: new Date() },
+        { id: '2', title: 'GraphQL @defer demo', completed: false, createdAt: new Date(), updatedAt: new Date() },
+        { id: '3', title: 'Yoga is cool', completed: false, createdAt: new Date(), updatedAt: new Date() },
+      ]
+      for (const todo of allTodos) {
+        console.log('Streaming post:', todo.title)
+        yield todo
+        await new Promise((r) => setTimeout(r, 1500))
+      }
+      //return todoStore.getTodos(args.filters);
+    },
+
+    allTodos: async function* (
+      _parent: unknown,
+      _args: { filters?: TodoFilters },
+      _context: Context
+    ) {
+      const allTodos: { id: string; title: string; completed: boolean; createdAt: Date; updatedAt: Date; }[] = [];
+      for (let i = 2; i <= 53; i++) {
+        const title = i === 2
+          ? 'GraphQL @defer demo'
+          : i === 3
+          ? 'Yoga is cool'
+          : `Todo ${i}`;
+        allTodos.push({ id: String(i), title, completed: false, createdAt: new Date(), updatedAt: new Date() });
+      }
+      yield  { id: '1', title: 'Hello world', completed: false, createdAt: new Date(), updatedAt: new Date() };
+      for (const todo of allTodos) {
+        console.log('Streaming post:', todo.title)
+        yield todo
+        await new Promise((r) => setTimeout(r, 1500))
+      }
+      //return todoStore.getTodos(args.filters);
     },
 
     todo: (_parent: unknown, args: { id: string }, _context: Context) => {
@@ -456,6 +495,15 @@ export const resolvers = {
       args: {
         networkEntity: string;
         limit: number;
+        spectrumInput?: {
+          eirpCarrier0?: boolean;
+          eirpCarrier1?: boolean;
+          eirpCarrier2?: boolean;
+          eirpCarrier3?: boolean;
+          palCount?: boolean;
+          reason?: boolean;
+          status?: boolean;
+        };
         operatorId: string;
         deviceFilter?: {
           type?: string;
@@ -465,8 +513,8 @@ export const resolvers = {
         };
         ids: number[];
       }) {
-        const { networkEntity, limit, operatorId, deviceFilter, ids } = args;
-        const queryParams: any = { operatorId, networkEntity, limit };
+        const { networkEntity, limit, operatorId, deviceFilter, ids, spectrumInput } = args;
+        const queryParams: any = { operatorId, networkEntity, limit, spectrumInput };
         if (typeof ids !== "undefined") queryParams.ids = ids;
         if (typeof deviceFilter !== "undefined") queryParams.deviceFilter = deviceFilter;
       yield* fetchAllDevices(queryParams)

@@ -5,22 +5,19 @@ class TodoStore {
   private todos: Map<string, Todo> = new Map();
 
   // Get all todos with optional filtering
-  getTodos(filters?: TodoFilters): Todo[] {
-    let todos = Array.from(this.todos.values());
+  async getTodos(filters?: TodoFilters): Promise<Todo[]> {
+    const todos = [
+      { id: '1', title: 'Hello world', completed: false, createdAt: new Date(), updatedAt: new Date() },
+      { id: '2', title: 'GraphQL @defer demo', completed: false, createdAt: new Date(), updatedAt: new Date() },
+      { id: '3', title: 'Yoga is cool', completed: false, createdAt: new Date(), updatedAt: new Date() },
+    ]
 
-    if (filters?.completed !== undefined) {
-      todos = todos.filter(todo => todo.completed === filters.completed);
+    // simulate streaming one item at a time
+    for (const todo of todos) {
+      console.log('Resolving todos:', todo.title)
+      await new Promise((r) => setTimeout(r, 2000)) // 2s delay per item
     }
-
-    if (filters?.search) {
-      const searchTerm = filters.search.toLowerCase();
-      todos = todos.filter(todo => 
-        todo.title.toLowerCase().includes(searchTerm) ||
-        (todo.description && todo.description.toLowerCase().includes(searchTerm))
-      );
-    }
-
-    return todos.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return todos
   }
 
   // Get a todo by ID
